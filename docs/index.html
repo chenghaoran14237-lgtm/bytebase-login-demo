@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -13,7 +16,8 @@
       display: flex;
       min-height: 100vh;
     }
-    .left, .right {
+    .left,
+    .right {
       flex: 1;
       padding: 40px;
       display: flex;
@@ -25,12 +29,25 @@
       color: #fff;
     }
     .card {
-      max-width: 400px;
+      max-width: 420px;
       margin: 0 auto;
-      background: white;
+      background: #fff;
       padding: 24px;
       border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 16px;
+    }
+    h2 {
+      margin: 0 0 8px;
+    }
+    h3 {
+      margin: 16px 0 8px;
+    }
+    p {
+      margin: 0 0 8px;
     }
     button {
       width: 100%;
@@ -40,9 +57,27 @@
       border: none;
       cursor: pointer;
       font-size: 14px;
+      transition: all 0.15s ease;
     }
-    .github-btn { background: #000; color: #fff; }
-    .google-btn { background: #fff; color: #333; border: 1px solid #ddd; }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .github-btn {
+      background: #000;
+      color: #fff;
+    }
+    .github-btn:hover {
+      background: #111;
+    }
+    .google-btn {
+      background: #fff;
+      color: #333;
+      border: 1px solid #ddd;
+    }
+    .google-btn:hover {
+      background: #fafafa;
+    }
     .user-info {
       margin-top: 16px;
       display: flex;
@@ -54,6 +89,13 @@
       height: 40px;
       border-radius: 999px;
     }
+    .user-info-main {
+      font-size: 14px;
+    }
+    .user-email {
+      font-size: 12px;
+      color: #666;
+    }
     .admin {
       margin-top: 24px;
     }
@@ -63,10 +105,30 @@
       margin-top: 12px;
       font-size: 12px;
     }
-    th, td {
+    th,
+    td {
       border: 1px solid #ddd;
       padding: 4px 8px;
       text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      background: #fafafa;
+    }
+    .actions-cell button {
+      width: auto;
+      margin: 2px 4px 2px 0;
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+    .error-banner {
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #fee2e2;
+      color: #991b1b;
+      border-radius: 6px;
+      font-size: 12px;
+      display: none;
     }
   </style>
 </head>
@@ -82,14 +144,15 @@
       <p>Choose a provider to continue:</p>
       <button class="github-btn" id="githubLogin">Sign in with GitHub</button>
       <button class="google-btn" id="googleLogin">Sign in with Google</button>
+      <div id="errorBanner" class="error-banner"></div>
 
       <div id="userSection" style="display:none;">
         <h3>Current User</h3>
         <div class="user-info">
           <img id="userAvatar" src="" alt="avatar" />
-          <div>
+          <div class="user-info-main">
             <div id="userName"></div>
-            <div id="userEmail" style="font-size:12px;color:#555;"></div>
+            <div id="userEmail" class="user-email"></div>
           </div>
         </div>
       </div>
@@ -110,36 +173,45 @@
           <tbody id="usersTbody"></tbody>
         </table>
       </div>
-      <div class="admin" style="margin-top: 24px;">
-  <h3>Login History</h3>
-  <button id="loadEventsBtn">View Login History</button>
-  <table id="eventsTable" style="display:none; margin-top: 12px;">
-    <thead>
-      <tr>
-        <th>Email</th>
-        <th>Provider</th>
-        <th>Logged at</th>
-      </tr>
-    </thead>
-    <tbody id="eventsTbody"></tbody>
-  </table>
-</div>
 
+      <div class="admin" style="margin-top: 24px;">
+        <h3>Login History</h3>
+        <button id="loadEventsBtn">View Login History</button>
+        <table id="eventsTable" style="display:none; margin-top: 12px;">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Provider</th>
+              <th>Logged at</th>
+            </tr>
+          </thead>
+          <tbody id="eventsTbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <script>
-    // TODO: 替换成你自己的 Supabase 项目配置
+    // === 配置区：根据你的实际项目调整 ===
     const SUPABASE_URL = "https://mptezokanuwjrcuvjtsp.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wdGV6b2thbnV3anJjdXZqdHNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4OTM3NjcsImV4cCI6MjA3OTQ2OTc2N30.8zvOZQUzIJ5BG3_SxPUHlb_1NXjnfiCacdFrN2NOqdg";
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    // TODO: 替换成你部署的后端地址
-    //const BACKEND_BASE_URL = "http://127.0.0.1:8000";本地版
+    const SUPABASE_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wdGV6b2thbnV3anJjdXZqdHNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4OTM3NjcsImV4cCI6MjA3OTQ2OTc2N30.8zvOZQUzIJ5BG3_SxPUHlb_1NXjnfiCacdFrN2NOqdg";
     const BACKEND_BASE_URL = "https://chenghaoran14237lgtm.pythonanywhere.com";
 
+    // OAuth 回调地址：使用“当前 origin + 当前 path”，
+    // 这样既兼容本地（127.0.0.1:5500），也兼容 GitHub Pages（含仓库名）。
+    const APP_URL = window.location.origin + window.location.pathname.split(/[?#]/)[0];
+
+    // ⚠️ 确保在 Supabase 的 Authentication → URL Configuration 里：
+    //   - Redirect URLs 包含这个 APP_URL（比如本地和 Pages 都各写一条）
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // === DOM 引用 ===
     const githubBtn = document.getElementById("githubLogin");
     const googleBtn = document.getElementById("googleLogin");
+    const errorBanner = document.getElementById("errorBanner");
+
     const userSection = document.getElementById("userSection");
     const userAvatar = document.getElementById("userAvatar");
     const userName = document.getElementById("userName");
@@ -148,48 +220,80 @@
     const loadUsersBtn = document.getElementById("loadUsersBtn");
     const usersTable = document.getElementById("usersTable");
     const usersTbody = document.getElementById("usersTbody");
+
     const loadEventsBtn = document.getElementById("loadEventsBtn");
     const eventsTable = document.getElementById("eventsTable");
     const eventsTbody = document.getElementById("eventsTbody");
 
     let accessToken = null;
 
+    // === 辅助函数 ===
+    function showError(message) {
+      console.error(message);
+      errorBanner.textContent = message;
+      errorBanner.style.display = "block";
+    }
+
+    function clearError() {
+      errorBanner.textContent = "";
+      errorBanner.style.display = "none";
+    }
+
+    // === 登录逻辑 ===
     async function signInWithProvider(provider) {
-      const { data, error } = await supabaseClient.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.origin  // 登录后回到当前页面
+      clearError();
+      githubBtn.disabled = true;
+      googleBtn.disabled = true;
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: APP_URL
+          }
+        });
+        if (error) {
+          showError("Login error: " + error.message);
         }
-      });
-      if (error) {
-        alert("Login error: " + error.message);
+        // Supabase 会自动重定向到 provider 的登录页面，这里不用做额外处理
+      } catch (e) {
+        showError("Unexpected login error");
+      } finally {
+        githubBtn.disabled = false;
+        googleBtn.disabled = false;
       }
     }
 
     githubBtn.addEventListener("click", () => signInWithProvider("github"));
     googleBtn.addEventListener("click", () => signInWithProvider("google"));
 
+    // === 初始化当前用户 ===
     async function initUser() {
-      const { data, error } = await supabaseClient.auth.getSession();
-      if (error || !data.session) {
-        console.log("Not logged in");
-        return;
-      }
-      const session = data.session;
-      accessToken = session.access_token;
-      const user = session.user;
-
-      const meta = user.user_metadata || {};
-      const name = meta.full_name || meta.name || "No name";
-      const avatar = meta.avatar_url || "https://via.placeholder.com/40";
-
-      userSection.style.display = "block";
-      userAvatar.src = avatar;
-      userName.textContent = name;
-      userEmail.textContent = user.email || "";
-
-      // 同步到后端
+      clearError();
       try {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) {
+          showError("Failed to get session: " + error.message);
+          return;
+        }
+        if (!data.session) {
+          console.log("Not logged in");
+          return;
+        }
+
+        const session = data.session;
+        accessToken = session.access_token;
+        const user = session.user;
+
+        const meta = user.user_metadata || {};
+        const name = meta.full_name || meta.name || "No name";
+        const avatar = meta.avatar_url || "https://via.placeholder.com/40";
+
+        userSection.style.display = "block";
+        userAvatar.src = avatar;
+        userName.textContent = name;
+        userEmail.textContent = user.email || "";
+
+        // 同步到后端（写入 users 表 & 登录记录）
         const res = await fetch(`${BACKEND_BASE_URL}/auth/callback`, {
           method: "POST",
           headers: {
@@ -198,128 +302,149 @@
           body: JSON.stringify({ access_token: accessToken })
         });
         const json = await res.json();
-        console.log("Sync user to backend:", json);
+        if (!json.success) {
+          showError("Sync user to backend failed: " + (json.error || "unknown error"));
+        } else {
+          console.log("Sync user to backend:", json.data);
+        }
       } catch (e) {
-        console.error("Sync error", e);
+        showError("Network error when initializing user");
       }
     }
 
+    // === 用户管理：加载用户列表 ===
     async function loadUsers() {
+      clearError();
       if (!accessToken) {
         alert("Please login first");
         return;
       }
-      const res = await fetch(`${BACKEND_BASE_URL}/users`, {
-        headers: {
-          "Authorization": `Bearer ${accessToken}`
+      try {
+        const res = await fetch(`${BACKEND_BASE_URL}/users`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+        const json = await res.json();
+        if (!json.success) {
+          showError("Load users error: " + json.error);
+          return;
         }
-      });
-      const json = await res.json();
-      if (!json.success) {
-        alert("Load users error: " + json.error);
-        return;
+        const users = json.data || [];
+        usersTbody.innerHTML = "";
+
+        users.forEach((u) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${u.id}</td>
+            <td>${u.email || ""}</td>
+            <td>${u.name || ""}</td>
+            <td>${u.provider || ""}</td>
+            <td class="actions-cell">
+              <button class="edit-user" data-id="${u.id}">Edit name</button>
+              <button class="delete-user" data-id="${u.id}">Delete</button>
+            </td>
+          `;
+          usersTbody.appendChild(tr);
+        });
+
+        usersTable.style.display = "table";
+      } catch (e) {
+        showError("Network error when loading users");
       }
-      const users = json.data || [];
-      usersTbody.innerHTML = "";
-      users.forEach(u => {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${u.id}</td>
-    <td>${u.email || ""}</td>
-    <td>${u.name || ""}</td>
-    <td>${u.provider || ""}</td>
-    <td>
-      <button class="edit-user" data-id="${u.id}">Edit name</button>
-      <button class="delete-user" data-id="${u.id}">Delete</button>
-    </td>
-  `;
-  usersTbody.appendChild(tr);
-});
-usersTable.style.display = "table";
-
     }
-
-    async function loadLoginEvents() {
-  try {
-    const res = await fetch(`${BACKEND_BASE_URL}/login-events`);
-    const json = await res.json();
-    if (!json.success) {
-      alert("Load login events failed: " + json.error);
-      return;
-    }
-
-    const events = json.data || [];
-    eventsTbody.innerHTML = "";
-
-    events.forEach(ev => {
-      const tr = document.createElement("tr");
-      const timeStr = ev.logged_in_at
-        ? new Date(ev.logged_in_at).toLocaleString()
-        : "";
-
-      tr.innerHTML = `
-        <td>${ev.email || ""}</td>
-        <td>${ev.provider || ""}</td>
-        <td>${timeStr}</td>
-      `;
-      eventsTbody.appendChild(tr);
-    });
-
-    eventsTable.style.display = "table";
-  } catch (e) {
-    console.error("loadLoginEvents error", e);
-    alert("Network error when loading login history");
-  }
-}
-
 
     loadUsersBtn.addEventListener("click", loadUsers);
-    // 使用事件代理，监听表格里的按钮点击
 
-loadEventsBtn.addEventListener("click", loadLoginEvents);
+    // === 登录历史 ===
+    async function loadLoginEvents() {
+      clearError();
+      try {
+        const res = await fetch(`${BACKEND_BASE_URL}/login-events`);
+        const json = await res.json();
+        if (!json.success) {
+          showError("Load login events failed: " + json.error);
+          return;
+        }
 
+        const events = json.data || [];
+        eventsTbody.innerHTML = "";
 
-usersTbody.addEventListener("click", async (e) => {
-  const target = e.target;
-  if (target.classList.contains("delete-user")) {
-    const userId = target.dataset.id;
-    if (!confirm("Delete this user?")) return;
+        events.forEach((ev) => {
+          const tr = document.createElement("tr");
+          const timeStr = ev.logged_in_at
+            ? new Date(ev.logged_in_at).toLocaleString()
+            : "";
+          tr.innerHTML = `
+            <td>${ev.email || ""}</td>
+            <td>${ev.provider || ""}</td>
+            <td>${timeStr}</td>
+          `;
+          eventsTbody.appendChild(tr);
+        });
 
-    const res = await fetch(`${BACKEND_BASE_URL}/users/${userId}`, {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`
+        eventsTable.style.display = "table";
+      } catch (e) {
+        showError("Network error when loading login history");
+      }
+    }
+
+    loadEventsBtn.addEventListener("click", loadLoginEvents);
+
+    // === 用户管理：编辑 / 删除 ===
+    usersTbody.addEventListener("click", async (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      if (target.classList.contains("delete-user")) {
+        const userId = target.dataset.id;
+        if (!userId) return;
+        if (!confirm("Delete this user?")) return;
+
+        try {
+          const res = await fetch(`${BACKEND_BASE_URL}/users/${userId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${accessToken}`
+            }
+          });
+          const json = await res.json();
+          if (!json.success) {
+            showError("Delete failed: " + json.error);
+            return;
+          }
+          await loadUsers();
+        } catch (e) {
+          showError("Network error when deleting user");
+        }
+      }
+
+      if (target.classList.contains("edit-user")) {
+        const userId = target.dataset.id;
+        if (!userId) return;
+        const newName = prompt("Input new name:");
+        if (!newName) return;
+
+        try {
+          const res = await fetch(`${BACKEND_BASE_URL}/users/${userId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`
+            },
+            body: JSON.stringify({ name: newName })
+          });
+          const json = await res.json();
+          if (!json.success) {
+            showError("Update failed: " + json.error);
+            return;
+          }
+          await loadUsers();
+        } catch (e) {
+          showError("Network error when updating user");
+        }
       }
     });
-    const json = await res.json();
-    if (!json.success) {
-      alert("Delete failed: " + json.error);
-      return;
-    }
-    await loadUsers(); // 刷新列表
-  }
-
-  if (target.classList.contains("edit-user")) {
-    const userId = target.dataset.id;
-    const newName = prompt("Input new name:");
-    if (!newName) return;
-
-    const res = await fetch(`${BACKEND_BASE_URL}/users/${userId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({ name: newName })
-    });
-    const json = await res.json();
-    if (!json.success) {
-      alert("Update failed: " + json.error);
-      return;
-    }
-    await loadUsers(); // 刷新列表
-  }
-});
 
     // 页面加载时尝试恢复 session
     initUser();
