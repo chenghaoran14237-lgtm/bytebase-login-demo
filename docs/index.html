@@ -130,6 +130,17 @@
       font-size: 12px;
       display: none;
     }
+    .signout-btn {
+      width: auto;
+      padding: 6px 10px;
+      margin-top: 0;
+      font-size: 12px;
+      background: #f97373;
+      color: #fff;
+    }
+    .signout-btn:hover {
+      background: #ef4444;
+    }
   </style>
 </head>
 <body>
@@ -147,7 +158,10 @@
       <div id="errorBanner" class="error-banner"></div>
 
       <div id="userSection" style="display:none;">
-        <h3>Current User</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <h3 style="margin: 16px 0 8px;">Current User</h3>
+          <button id="signOutBtn" class="signout-btn">Sign out</button>
+        </div>
         <div class="user-info">
           <img id="userAvatar" src="" alt="avatar" />
           <div class="user-info-main">
@@ -192,18 +206,14 @@
   </div>
 
   <script>
-    // === 配置区：根据你的实际项目调整 ===
+    // === 配置区 ===
     const SUPABASE_URL = "https://mptezokanuwjrcuvjtsp.supabase.co";
     const SUPABASE_KEY =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wdGV6b2thbnV3anJjdXZqdHNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4OTM3NjcsImV4cCI6MjA3OTQ2OTc2N30.8zvOZQUzIJ5BG3_SxPUHlb_1NXjnfiCacdFrN2NOqdg";
     const BACKEND_BASE_URL = "https://chenghaoran14237lgtm.pythonanywhere.com";
 
-    // OAuth 回调地址：使用“当前 origin + 当前 path”，
-    // 这样既兼容本地（127.0.0.1:5500），也兼容 GitHub Pages（含仓库名）。
+    // 让 redirectTo 既兼容本地，也兼容 GitHub Pages(含仓库路径)
     const APP_URL = window.location.origin + window.location.pathname.split(/[?#]/)[0];
-
-    // ⚠️ 确保在 Supabase 的 Authentication → URL Configuration 里：
-    //   - Redirect URLs 包含这个 APP_URL（比如本地和 Pages 都各写一条）
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -216,6 +226,7 @@
     const userAvatar = document.getElementById("userAvatar");
     const userName = document.getElementById("userName");
     const userEmail = document.getElementById("userEmail");
+    const signOutBtn = document.getElementById("signOutBtn");
 
     const loadUsersBtn = document.getElementById("loadUsersBtn");
     const usersTable = document.getElementById("usersTable");
@@ -239,7 +250,7 @@
       errorBanner.style.display = "none";
     }
 
-    // === 登录逻辑 ===
+    // === 登录 ===
     async function signInWithProvider(provider) {
       clearError();
       githubBtn.disabled = true;
@@ -254,7 +265,7 @@
         if (error) {
           showError("Login error: " + error.message);
         }
-        // Supabase 会自动重定向到 provider 的登录页面，这里不用做额外处理
+        // Supabase 会自动跳转到第三方登录页面
       } catch (e) {
         showError("Unexpected login error");
       } finally {
@@ -265,6 +276,32 @@
 
     githubBtn.addEventListener("click", () => signInWithProvider("github"));
     googleBtn.addEventListener("click", () => signInWithProvider("google"));
+
+    // === 登出 ===
+    async function signOut() {
+      clearError();
+      try {
+        await supabaseClient.auth.signOut();
+      } catch (e) {
+        showError("Sign out error");
+      } finally {
+        accessToken = null;
+        userSection.style.display = "none";
+        userAvatar.src = "";
+        userName.textContent = "";
+        userEmail.textContent = "";
+
+        usersTable.style.display = "none";
+        eventsTable.style.display = "none";
+        usersTbody.innerHTML = "";
+        eventsTbody.innerHTML = "";
+
+        // 如果想更彻底，可以直接刷新：
+        // window.location.href = APP_URL;
+      }
+    }
+
+    signOutBtn.addEventListener("click", signOut);
 
     // === 初始化当前用户 ===
     async function initUser() {
@@ -293,7 +330,6 @@
         userName.textContent = name;
         userEmail.textContent = user.email || "";
 
-        // 同步到后端（写入 users 表 & 登录记录）
         const res = await fetch(`${BACKEND_BASE_URL}/auth/callback`, {
           method: "POST",
           headers: {
@@ -312,7 +348,7 @@
       }
     }
 
-    // === 用户管理：加载用户列表 ===
+    // === 加载用户列表 ===
     async function loadUsers() {
       clearError();
       if (!accessToken) {
@@ -391,7 +427,7 @@
 
     loadEventsBtn.addEventListener("click", loadLoginEvents);
 
-    // === 用户管理：编辑 / 删除 ===
+    // === 编辑 / 删除用户 ===
     usersTbody.addEventListener("click", async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLElement)) return;
